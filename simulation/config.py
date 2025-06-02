@@ -32,8 +32,8 @@ command_trip_creation = [
     "-o", TRIP_FILE,
     "--random-departpos",
     "-b", "0",
-    "-e", "100",
-    "-p", "1.5",
+    "-e", "300",
+    "-p", "0.5",
     "--vehicle-class", "private",
 ]
 
