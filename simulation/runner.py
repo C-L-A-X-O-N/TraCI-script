@@ -12,10 +12,17 @@ def run_simulation():
         process_files()
         start_traci()
 
+        is_first_step = True
+
         # Tourne tant que il y a au moins un vehicule
         while traci.simulation.getMinExpectedNumber() > 0:
-            collect_simulation_data()
+            collect_simulation_data(is_first_step)
             traci.simulationStep()
+            is_first_step = False
+
+        stop_paho()
+        close_traci()
+        run_simulation()
 
     finally:
         stop_paho()
