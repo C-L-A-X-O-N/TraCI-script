@@ -1,10 +1,5 @@
-from sumolib.net import readNet
-
-from simulation.config import NET_FILE
-
-net = readNet(NET_FILE)
+import simulation.config
 
 def convert_to_latlong(x,y):
-
-    lon, lat = net.convertXY2LonLat(x, y)
+    lon, lat = simulation.config.NET_READER.convertXY2LonLat(x, y)
     return lat, lon

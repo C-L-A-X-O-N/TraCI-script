@@ -1,12 +1,15 @@
 import os
 import subprocess
 
+from sumolib.net import readNet
+
 OSM_FILE = "data" + "/map.osm.xml"
 NET_FILE = "data" + "/map.net.xml"
 ROU_FILE = "data" + "/map.rou.xml"
 TRIP_FILE = "data" + "/map.trip.xml"
 SUMO_HOME = os.environ.get("SUMO_HOME")
 SUMO_BINARY = SUMO_HOME + "bin/sumo"
+NET_READER = None
 
 command_osm_transformation = [
     "netconvert",
@@ -23,7 +26,7 @@ command_osm_transformation = [
 ]
 
 command_trip_creation = [
-    "python3",
+    "python",
     SUMO_HOME + "tools/randomTrips.py",
     "-n", NET_FILE,
     "-o", TRIP_FILE,
@@ -45,7 +48,7 @@ command_rou_creation = [
 
 def process_osm_tranformation():
     try:
-        subprocess.run(command_osm_transformation)
+        subprocess.run(command_osm_transformation, stdout=subprocess.DEVNULL, check=True)
         print("Fichiers net générés avec succès.")
     except subprocess.CalledProcessError as e:
         print("Erreur lors de l'exécution de netconvert :", e)
@@ -54,7 +57,7 @@ def process_osm_tranformation():
 
 def process_trip_generation():
     try:
-        subprocess.run(command_trip_creation)
+        subprocess.run(command_trip_creation, stdout=subprocess.DEVNULL, check=True)
         print("Fichiers trip générés avec succès.")
     except subprocess.CalledProcessError as e:
         print("Erreur lors de l'exécution de randomTrips :", e)
@@ -63,7 +66,7 @@ def process_trip_generation():
 
 def process_rou_generation():
     try:
-        subprocess.run(command_rou_creation)
+        subprocess.run(command_rou_creation, stdout=subprocess.DEVNULL, check=True)
         print("Fichiers route générés avec succès.")
     except subprocess.CalledProcessError as e:
         print("Erreur lors de l'exécution de duarouter :", e)
@@ -71,6 +74,8 @@ def process_rou_generation():
         print("duarouter introuvable.")
 
 def process_files():
+    global NET_READER
     process_osm_tranformation()
     process_trip_generation()
     process_rou_generation()
+    NET_READER = readNet(NET_FILE)
