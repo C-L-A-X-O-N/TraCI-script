@@ -1,8 +1,8 @@
-from simulation.config import process_osm_tranformation, process_trip_generation, process_files
-from simulation.traci_manager import start_traci, close_traci
-from simulation.simulation_logic import collect_simulation_data, collect_lane
 import traci
 
+from simulation.config import process_files
+from simulation.simulation_logic import collect_simulation_data
+from simulation.traci_manager import start_traci, close_traci
 from util.mqtt import run_paho, stop_paho
 
 
