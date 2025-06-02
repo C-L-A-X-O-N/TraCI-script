@@ -1,4 +1,4 @@
-import traci
+import traci, logging
 
 from util.converter import convert_to_latlong
 from util.mqtt import publish
@@ -44,7 +44,7 @@ def collect_traffic_light():
                     "stop_lat": lat,
                     "stop_lon": lon
                 })
-        return traffic_light_data
+    return traffic_light_data
 
 def collect_lane():
     lane_ids = traci.lane.getIDList()
