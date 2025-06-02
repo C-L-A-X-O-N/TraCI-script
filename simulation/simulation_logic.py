@@ -4,10 +4,15 @@ from util.converter import convert_to_latlong
 from util.mqtt import publish
 
 
-def collect_simulation_data():
-    publish("vehicle", collect_vehicle())
-    publish("traffic_light", collect_traffic_light_position())
-    publish("lane", collect_lane_position())
+def collect_simulation_data(is_first_step: bool):
+
+    # Permet d'envoyer que une seul fois position des feux et des lanes qui ne change pa spendant la sumulation
+    if is_first_step:
+        publish("traci/lane/position", collect_lane_position())
+        publish("traci/traffic_light/position", collect_traffic_light_position())
+
+    publish("traci/vehicle/position", collect_vehicle())
+    publish("traci/traffic_light/state", collect_traffic_light_state())
 
 def collect_vehicle():
     vehicle_ids = traci.vehicle.getIDList()
@@ -38,13 +43,25 @@ def collect_traffic_light_position():
                 lat, lon = convert_to_latlong(x_stop, y_stop)
 
                 traffic_light_data.append({
-                    "tls_id": traffic_light,
+                    "id": traffic_light,
                     "in_lane": in_lane,
                     "out_lane": out_lane,
                     "via_lane": via_lane,
                     "stop_lat": lat,
                     "stop_lon": lon
                 })
+    return traffic_light_data
+
+def collect_traffic_light_state():
+    traffic_light_ids = traci.trafficlight.getIDList()
+    traffic_light_data = []
+
+    for traffic_light in traffic_light_ids:
+        traffic_light_data.append({
+            "id": traffic_light,
+            "state": traci.trafficlight.getPhase(traffic_light)
+        })
+
     return traffic_light_data
 
 def collect_lane_position():
