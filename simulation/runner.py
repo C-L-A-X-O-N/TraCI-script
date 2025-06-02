@@ -1,3 +1,5 @@
+from time import sleep
+
 import traci
 
 from simulation.config import process_files
@@ -17,6 +19,7 @@ def run_simulation():
         # Tourne tant que il y a au moins un vehicule
         while traci.simulation.getMinExpectedNumber() > 0:
             collect_simulation_data(is_first_step)
+            sleep(0.5)
             traci.simulationStep()
             is_first_step = False
 
