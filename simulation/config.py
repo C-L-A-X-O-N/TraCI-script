@@ -23,13 +23,13 @@ command_osm_transformation = [
 ]
 
 command_trip_creation = [
-    "python",
-    SUMO_HOME + "tools\\randomTrips.py",
+    "python3",
+    SUMO_HOME + "tools/randomTrips.py",
     "-n", NET_FILE,
     "-o", TRIP_FILE,
     "--random-departpos",
     "-b", "0",
-    "-e", "300",
+    "-e", "3000",
     "-p", "1.5",
     "--vehicle-class", "private",
 ]
