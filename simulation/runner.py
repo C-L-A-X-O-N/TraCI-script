@@ -3,7 +3,8 @@ from time import sleep
 import traci
 
 from simulation.config import process_files
-from simulation.simulation_logic import collect_simulation_data
+from simulation.simulation_getter import collect_simulation_data
+from simulation.simulation_setter import accidents_generator, accidents_liberator
 from simulation.traci_manager import start_traci, close_traci
 from util.mqtt import run_paho, stop_paho
 
@@ -16,11 +17,14 @@ def run_simulation():
 
         is_first_step = True
         step_count = 0
+        blocked_vehicles = {}
 
         # Tourne tant que il y a au moins un vehicule
         while traci.simulation.getMinExpectedNumber() > 0:
             print(step_count)
             collect_simulation_data(is_first_step)
+            accidents_generator(blocked_vehicles, step_count)
+            accidents_liberator(blocked_vehicles, step_count)
             sleep(0.1)
             traci.simulationStep()
             is_first_step = False
