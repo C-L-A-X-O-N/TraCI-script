@@ -3,12 +3,12 @@ import subprocess
 
 from sumolib.net import readNet
 
-OSM_FILE = "data" + "/map.osm.xml"
-NET_FILE = "data" + "/map.net.xml"
-ROU_FILE = "data" + "/map.rou.xml"
-TRIP_FILE = "data" + "/map.trip.xml"
+OSM_FILE = os.path.join("data", "map.osm.xml")
+NET_FILE = os.path.join("data", "map.net.xml")
+ROU_FILE = os.path.join("data", "map.rou.xml")
+TRIP_FILE = os.path.join("data", "map.trip.xml")
 SUMO_HOME = os.environ.get("SUMO_HOME")
-SUMO_BINARY = SUMO_HOME + "bin/sumo"
+SUMO_BINARY = os.path.join(SUMO_HOME, "bin", "sumo")
 NET_READER = None
 
 command_osm_transformation = [
@@ -27,7 +27,7 @@ command_osm_transformation = [
 
 command_trip_creation = [
     "python",
-    SUMO_HOME + "tools/randomTrips.py",
+    os.path.join(SUMO_HOME, "tools", "randomTrips.py"),
     "-n", NET_FILE,
     "-o", TRIP_FILE,
     "--random-departpos",
