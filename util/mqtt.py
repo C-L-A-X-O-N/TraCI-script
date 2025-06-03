@@ -32,7 +32,7 @@ def on_connect(client, userdata, flags, rc):
         logger.error(f"Failed to connect to MQTT broker, return code {rc}")
 
 def on_message(client, userdata, msg):
-    from simulation.simulation_logic import send_first_step_data
+    from simulation.simulation_getter import send_first_step_data
     
     topic = msg.topic
     payload = msg.payload.decode('utf-8')
