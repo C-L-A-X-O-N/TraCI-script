@@ -3,13 +3,15 @@ import traci
 from util.converter import convert_to_latlong
 from util.mqtt import publish
 
+def send_first_step_data():
+    publish("traci/lane/position", collect_lane_position())
+    publish("traci/traffic_light/position", collect_traffic_light_position())
 
 def collect_simulation_data(is_first_step: bool):
 
     # Permet d'envoyer que une seul fois position des feux et des lanes qui ne change pa spendant la sumulation
     if is_first_step:
-        publish("traci/lane/position", collect_lane_position())
-        publish("traci/traffic_light/position", collect_traffic_light_position())
+        send_first_step_data()
 
     publish("traci/vehicle/position", collect_vehicle())
     publish("traci/traffic_light/state", collect_traffic_light_state())
