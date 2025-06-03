@@ -11,8 +11,8 @@ from util.mqtt import run_paho, stop_paho
 
 def run_simulation():
     try:
-        run_paho()
         process_files()
+        run_paho()
         start_traci()
 
         is_first_step = True
@@ -25,7 +25,7 @@ def run_simulation():
             collect_simulation_data(is_first_step)
             accidents_generator(blocked_vehicles, step_count)
             accidents_liberator(blocked_vehicles, step_count)
-            sleep(0.1)
+            sleep(1)
             traci.simulationStep()
             is_first_step = False
             step_count += 1

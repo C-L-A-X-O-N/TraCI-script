@@ -1,4 +1,5 @@
 import traci
+import simulation.config
 
 from util.converter import convert_to_latlong
 from util.mqtt import publish
@@ -68,6 +69,21 @@ def collect_traffic_light_state():
 
     return traffic_light_data
 
+def classify_lane(allowed):
+    if any(v in allowed for v in ["passenger", "private", "hov", "vip", "evehicle", "taxi"]):
+        return "car"
+    if any(v in allowed for v in ["bus", "coach"]):
+        return "public_transport"
+    if any(v in allowed for v in ["tram"]):
+        return "train"
+    if any(v in allowed for v in ["motorcycle", "moped"]):
+        return "2_wheeler"
+    if "bicycle" in allowed:
+        return "bike"
+    if "pedestrian" in allowed:
+        return "pedestrian"
+    return "unknown"
+
 def collect_lane_position():
     lane_ids = traci.lane.getIDList()
     lane_data = []
@@ -80,9 +96,17 @@ def collect_lane_position():
         for shape in shapes:
             shape_data.append((convert_to_latlong(shape[0], shape[1])))
 
+        
+        edgeID = traci.lane.getEdgeID(lane)
+
+        edge = simulation.config.NET_READER.getEdge(edgeID) if edgeID in simulation.config.NET_READER._id2edge else None
+        priority = edge.getPriority() if edge is not None else 0
+
         lane_data.append({
             "id": lane,
             "shape": shape_data,
+            "priority": priority,
+            "type": classify_lane(traci.lane.getAllowed(lane))
         })
 
     return lane_data
