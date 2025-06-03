@@ -92,11 +92,6 @@ def collect_lane_state():
     lane_data = []
 
     for lane in lane_ids:
-        if (traci.lane.getLastStepOccupancy(lane) > 0.5):
-            print({
-            "id": lane,
-            "traffic jam": traci.lane.getLastStepOccupancy(lane),
-        })
         lane_data.append({
             "id": lane,
             "traffic jam": traci.lane.getLastStepOccupancy(lane),
