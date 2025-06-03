@@ -15,6 +15,7 @@ def collect_simulation_data(is_first_step: bool):
 
     publish("traci/vehicle/position", collect_vehicle())
     publish("traci/traffic_light/state", collect_traffic_light_state())
+    publish("traci/lane/state", collect_lane_state())
 
 def collect_vehicle():
     vehicle_ids = traci.vehicle.getIDList()
@@ -29,6 +30,7 @@ def collect_vehicle():
             "angle": traci.vehicle.getAngle(vehicle),
             "speed": speed
         })
+
     return vehicle_data
 
 def collect_traffic_light_position():
@@ -81,6 +83,23 @@ def collect_lane_position():
         lane_data.append({
             "id": lane,
             "shape": shape_data,
+        })
+
+    return lane_data
+
+def collect_lane_state():
+    lane_ids = traci.lane.getIDList()
+    lane_data = []
+
+    for lane in lane_ids:
+        if (traci.lane.getLastStepOccupancy(lane) > 0.5):
+            print({
+            "id": lane,
+            "traffic jam": traci.lane.getLastStepOccupancy(lane),
+        })
+        lane_data.append({
+            "id": lane,
+            "traffic jam": traci.lane.getLastStepOccupancy(lane),
         })
 
     return lane_data
