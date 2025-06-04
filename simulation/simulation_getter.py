@@ -118,7 +118,7 @@ def collect_lane_state():
     for lane in lane_ids:
         lane_data.append({
             "id": lane,
-            "traffic jam": traci.lane.getLastStepOccupancy(lane),
+            "traffic_jam": traci.lane.getLastStepOccupancy(lane),
         })
 
     return lane_data
