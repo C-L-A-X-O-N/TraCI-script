@@ -64,7 +64,7 @@ def collect_traffic_light_state():
     for traffic_light in traffic_light_ids:
         traffic_light_data.append({
             "id": traffic_light,
-            "state": traci.trafficlight.getPhase(traffic_light)
+            "state": traci.trafficlight.getRedYellowGreenState(traffic_light)
         })
 
     return traffic_light_data
