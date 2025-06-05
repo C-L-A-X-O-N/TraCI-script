@@ -3,10 +3,15 @@ import subprocess
 
 from sumolib.net import readNet
 
+SUMO_CONFIG = os.path.join("data", "file.sumocfg")
 OSM_FILE = os.path.join("data", "map.osm.xml")
 NET_FILE = os.path.join("data", "map.net.xml")
 ROU_FILE = os.path.join("data", "map.rou.xml")
 TRIP_FILE = os.path.join("data", "map.trip.xml")
+TRAIN_TRIP_FILE = os.path.join("data", "map.train_trip.xml")
+TRAIN_ROU_FILE = os.path.join("data", "map.train.rou.xml")
+BUS_TRIP_FILE = os.path.join("data", "map.bus_trip.xml")
+BUS_ROU_FILE = os.path.join("data", "map.bus.rou.xml")
 SUMO_HOME = os.environ.get("SUMO_HOME")
 SUMO_BINARY = os.path.join(SUMO_HOME, "bin", "sumo")
 NET_READER = None
@@ -33,8 +38,56 @@ command_trip_creation = [
     "--random-departpos",
     "-b", "0",
     "-e", "300",
-    "-p", "0.5",
+    "-p", "1",
+    "--prefix", "veh_",
     "--vehicle-class", "private",
+]
+
+
+command_train_trip_creation = [
+    "python",
+    os.path.join(SUMO_HOME, "tools", "randomTrips.py"),
+    "-n", NET_FILE,
+    "-o", TRAIN_TRIP_FILE,
+    "--random-departpos",
+    "-b", "0",
+    "-e", "300",
+    "-p", "30", 
+    "--vehicle-class", "tram",
+    "--prefix", "train_",
+    "--allow-fringe",
+    "--validate"
+]
+
+command_train_rou_creation = [
+    "duarouter",
+    "--net-file", NET_FILE,
+    "--route-files", TRAIN_TRIP_FILE,
+    "--output-file", TRAIN_ROU_FILE
+]
+
+command_bus_trip_creation = [
+    "python",
+    os.path.join(SUMO_HOME, "tools", "randomTrips.py"),
+    "-n", NET_FILE,
+    "-o", BUS_TRIP_FILE,
+    "--random-departpos",
+    "-b", "0",
+    "-e", "300",
+    "-p", "15",
+    "--vehicle-class", "bus",
+    "--prefix", "bus_",
+    "--allow-fringe",
+    "--validate"
+]
+
+command_bus_rou_creation = [
+    "duarouter",
+    "--net-file", NET_FILE,
+    "--route-files", BUS_TRIP_FILE,
+    "--output-file", BUS_ROU_FILE,
+    "--ignore-errors",
+    "--no-warnings"
 ]
 
 command_rou_creation = [
@@ -73,9 +126,63 @@ def process_rou_generation():
     except FileNotFoundError:
         print("duarouter introuvable.")
 
+def process_train_trip_generation():
+    try:
+        subprocess.run(command_train_trip_creation, stdout=subprocess.DEVNULL, check=True)
+        print("Fichiers train trip générés avec succès.")
+    except subprocess.CalledProcessError as e:
+        print("Erreur lors de randomTrips pour les trains :", e)
+    except FileNotFoundError:
+        print("randomTrips introuvable.")
+
+def process_train_rou_generation():
+    try:
+        subprocess.run(command_train_rou_creation, stdout=subprocess.DEVNULL, check=True)
+        print("Fichiers train route générés avec succès.")
+    except subprocess.CalledProcessError as e:
+        print("Erreur lors de duarouter pour les trains :", e)
+    except FileNotFoundError:
+        print("duarouter introuvable.")
+
+def process_bus_trip_generation():
+    try:
+        subprocess.run(command_bus_trip_creation, stdout=subprocess.DEVNULL, check=True)
+        print("Fichiers bus trip générés avec succès.")
+    except subprocess.CalledProcessError as e:
+        print("Erreur lors de randomTrips pour les bus :", e)
+    except FileNotFoundError:
+        print("randomTrips introuvable.")
+
+def process_bus_rou_generation():
+    try:
+        subprocess.run(command_bus_rou_creation, stdout=subprocess.DEVNULL, check=True)
+        print("Fichiers bus route générés avec succès.")
+    except subprocess.CalledProcessError as e:
+        print("Erreur lors de duarouter pour les bus :", e)
+    except FileNotFoundError:
+        print("duarouter introuvable.")
+
 def process_files():
     global NET_READER
+    import logging
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(
+        level=logging.DEBUG,
+    )
+    logger.info("Début du traitement des fichiers...")
+    logger.info("Génération des fichiers NET à partir de OSM...")
     process_osm_tranformation()
+    logger.info("Génération des fichiers TRIP...")
     process_trip_generation()
+    logger.info("Génération des fichiers ROU...")
     process_rou_generation()
+    logger.info("Génération des fichiers TRAIN TRIP...")
+    process_train_trip_generation()
+    logger.info("Génération des fichiers TRAIN ROU...")
+    process_train_rou_generation()
+    logger.info("Génération des fichiers BUS TRIP...")
+    process_bus_trip_generation()
+    logger.info("Génération des fichiers BUS ROU...")
+    process_bus_rou_generation()
+    logger.info("Chargement du fichier NET...")
     NET_READER = readNet(NET_FILE)

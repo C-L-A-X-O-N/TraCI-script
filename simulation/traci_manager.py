@@ -5,7 +5,7 @@ from simulation.config import SUMO_HOME
 
 def start_traci():
     binary = config.SUMO_BINARY
-    cmd = [binary, "-n", config.NET_FILE, "-r", config.ROU_FILE]
+    cmd = [binary, "-c", config.SUMO_CONFIG]
     traci.start(cmd)
 
 def close_traci():
