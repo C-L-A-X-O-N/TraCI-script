@@ -29,7 +29,8 @@ def collect_vehicle():
             "id": vehicle,
             "position": convert_to_latlong(position[0],position[1]),
             "angle": traci.vehicle.getAngle(vehicle),
-            "speed": speed
+            "speed": speed,
+            "type": traci.vehicle.getTypeID(vehicle)
         })
 
     return vehicle_data
