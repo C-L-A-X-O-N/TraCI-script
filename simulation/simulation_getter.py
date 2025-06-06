@@ -1,36 +1,41 @@
 import traci
-import simulation.config
 
+import simulation.config
 from util.converter import convert_to_latlong
 from util.mqtt import publish
+
 
 def send_first_step_data():
     publish("traci/lane/position", collect_lane_position())
     publish("traci/traffic_light/position", collect_traffic_light_position())
 
-def collect_simulation_data(is_first_step: bool):
+def collect_simulation_data(is_first_step: bool, blocked_vehicles: dict):
 
     # Permet d'envoyer que une seul fois position des feux et des lanes qui ne change pa spendant la sumulation
     if is_first_step:
         send_first_step_data()
 
-    publish("traci/vehicle/position", collect_vehicle())
+    publish("traci/vehicle/position", collect_vehicle(blocked_vehicles))
     publish("traci/traffic_light/state", collect_traffic_light_state())
     publish("traci/lane/state", collect_lane_state())
 
-def collect_vehicle():
+def collect_vehicle(blocked_vehicles: dict):
     vehicle_ids = traci.vehicle.getIDList()
     vehicle_data = []
 
     for vehicle in vehicle_ids:
+        accident = False
         position = traci.vehicle.getPosition(vehicle)
         speed = traci.vehicle.getSpeed(vehicle)
+        if (vehicle in blocked_vehicles):
+            accident = True
         vehicle_data.append({
             "id": vehicle,
             "position": convert_to_latlong(position[0],position[1]),
             "angle": traci.vehicle.getAngle(vehicle),
             "speed": speed,
-            "type": traci.vehicle.getTypeID(vehicle)
+            "type": traci.vehicle.getTypeID(vehicle),
+            "accident": accident
         })
 
     return vehicle_data
@@ -97,7 +102,7 @@ def collect_lane_position():
         for shape in shapes:
             shape_data.append((convert_to_latlong(shape[0], shape[1])))
 
-        
+
         edgeID = traci.lane.getEdgeID(lane)
 
         edge = simulation.config.NET_READER.getEdge(edgeID) if edgeID in simulation.config.NET_READER._id2edge else None
