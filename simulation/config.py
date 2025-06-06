@@ -23,10 +23,10 @@ command_osm_transformation = [
     "--output-file", NET_FILE,
     "--output.street-names", "true",
     "--output.original-names", "true",
-    "--tls.guess-signals",
-    "--tls.discard-simple",
-    "--tls.join",
-    "--tls.default-type", "static",
+    "--tls.guess", "true",
+    "--tls.discard-simple", "false",
+    "--tls.default-type", "actuated",
+    "--junctions.join", "true",
     "--proj.utm",
     "--no-warnings"
 ]
