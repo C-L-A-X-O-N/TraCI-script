@@ -2,7 +2,7 @@ from time import sleep
 
 import traci
 
-from simulation.config import process_files, STEP_MAX
+from simulation.config import readNetFile, STEP_MAX
 from simulation.simulation_getter import collect_simulation_data
 from simulation.simulation_setter import accidents_generator, accidents_liberator
 from simulation.traci_manager import start_traci, close_traci
@@ -11,7 +11,7 @@ from util.mqtt import run_paho, stop_paho
 
 def run_simulation():
     try:
-        process_files()
+        readNetFile()
         run_paho()
         start_traci()
 

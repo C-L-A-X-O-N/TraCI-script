@@ -17,6 +17,12 @@ SUMO_BINARY = os.path.join(SUMO_HOME, "bin", "sumo")
 NET_READER = None
 STEP_MAX = 300
 
+import logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.DEBUG,
+)
+
 command_osm_transformation = [
     "netconvert",
     "--osm-files", OSM_FILE,
@@ -163,13 +169,17 @@ def process_bus_rou_generation():
     except FileNotFoundError:
         print("duarouter introuvable.")
 
-def process_files():
+def readNetFile():
     global NET_READER
-    import logging
-    logger = logging.getLogger(__name__)
-    logging.basicConfig(
-        level=logging.DEBUG,
-    )
+    if NET_READER is None:
+        try:
+            NET_READER = readNet(NET_FILE)
+            logger.info("Fichier NET chargé avec succès.")
+        except Exception as e:
+            logger.error(f"Erreur lors du chargement du fichier NET : {e}")
+    return NET_READER
+
+def process_files():
     logger.info("Début du traitement des fichiers...")
     logger.info("Génération des fichiers NET à partir de OSM...")
     process_osm_tranformation()
@@ -186,4 +196,4 @@ def process_files():
     logger.info("Génération des fichiers BUS ROU...")
     process_bus_rou_generation()
     logger.info("Chargement du fichier NET...")
-    NET_READER = readNet(NET_FILE)
+    readNetFile()
