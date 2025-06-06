@@ -15,6 +15,7 @@ BUS_ROU_FILE = os.path.join("data", "map.bus.rou.xml")
 SUMO_HOME = os.environ.get("SUMO_HOME")
 SUMO_BINARY = os.path.join(SUMO_HOME, "bin", "sumo")
 NET_READER = None
+STEP_MAX = 300
 
 command_osm_transformation = [
     "netconvert",
@@ -37,7 +38,7 @@ command_trip_creation = [
     "-o", TRIP_FILE,
     "--random-departpos",
     "-b", "0",
-    "-e", "300",
+    "-e", STEP_MAX.__str__(),
     "-p", "1",
     "--prefix", "veh_",
     "--vehicle-class", "private",
@@ -51,7 +52,7 @@ command_train_trip_creation = [
     "-o", TRAIN_TRIP_FILE,
     "--random-departpos",
     "-b", "0",
-    "-e", "300",
+    "-e", STEP_MAX.__str__(),
     "-p", "30", 
     "--vehicle-class", "tram",
     "--prefix", "train_",
@@ -73,7 +74,7 @@ command_bus_trip_creation = [
     "-o", BUS_TRIP_FILE,
     "--random-departpos",
     "-b", "0",
-    "-e", "300",
+    "-e", STEP_MAX.__str__(),
     "-p", "15",
     "--vehicle-class", "bus",
     "--prefix", "bus_",
