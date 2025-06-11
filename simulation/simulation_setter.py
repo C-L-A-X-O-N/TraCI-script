@@ -8,7 +8,7 @@ def accidents_generator(blocked_vehicles: dict[str, int], step: int):
     vehicules_ids = traci.vehicle.getIDList()
     for vehicule in vehicules_ids:
         if traci.vehicle.getTypeID(vehicule) == "veh__private":
-            if random.randint(1, 1000) == 1:
+            if random.randint(1, 1500) == 1:
                 logger.info(f"Accident generated for vehicle {vehicule} at step {step}")
                 traci.vehicle.setSpeed(vehicule, 0)
                 blocked_vehicles[vehicule] = step + 10
