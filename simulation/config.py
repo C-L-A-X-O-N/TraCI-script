@@ -2,6 +2,7 @@ import os
 import subprocess
 
 from sumolib.net import readNet
+from util.logger import logger
 
 SUMO_CONFIG = os.path.join("data", "file.sumocfg")
 OSM_FILE = os.path.join("data", "map.osm.xml")
@@ -16,12 +17,6 @@ SUMO_HOME = os.environ.get("SUMO_HOME")
 SUMO_BINARY = os.path.join(SUMO_HOME, "bin", "sumo")
 NET_READER = None
 STEP_MAX = 300
-
-import logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.DEBUG,
-)
 
 command_osm_transformation = [
     "netconvert",
