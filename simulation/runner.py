@@ -1,20 +1,28 @@
 from time import sleep
 
-import traci
+import traci, os, json
 
 from simulation.config import readNetFile, STEP_MAX
-from simulation.simulation_getter import collect_simulation_data
+from simulation.simulation_getter import collect_simulation_data, send_first_step_data
 from simulation.simulation_setter import accidents_generator, accidents_liberator
 from simulation.traci_manager import start_traci, close_traci
-from util.mqtt import run_paho, stop_paho
+from util.mqtt import MqttClient, registry
 from util.logger import logger
 
+def on_init_request(msg, mqttClient):
+    data = json.loads(msg.payload.decode('utf-8'))
+    registry.add_client(data['host'], data['port'])
 
 def run_simulation():
+    commonMqtt = None
     try:
+        commonMqtt = MqttClient(host=os.environ.get('MQTT_HOST', 'localhost'), port=int(os.environ.get('MQTT_PORT', 1883)), subscribes={
+            "traci/node/start": on_init_request
+        })
         readNetFile()
-        run_paho()
         start_traci()
+
+        commonMqtt.publish("traci/start", "")
 
         is_first_step = True
         step_count = 0
@@ -24,6 +32,7 @@ def run_simulation():
         while traci.simulation.getMinExpectedNumber() > 0 and step_count < (STEP_MAX - 20) :
             try:
                 while step_count<20:
+                    logger.debug(f"Skipping step {step_count} for initialization.")
                     traci.simulationStep()
                     step_count += 1
                 accidents_generator(blocked_vehicles, step_count)
@@ -36,12 +45,15 @@ def run_simulation():
             except traci.TraCIException as e:
                 logger.error(f"TraCI exception occurred: {e}")
 
-        stop_paho()
+        commonMqtt.stop_paho()
+        registry.on_stop()
         close_traci()
         run_simulation()
     except KeyboardInterrupt:
         logger.info("Simulation interrupted by user.")
 
     finally:
-        stop_paho()
+        if commonMqtt != None:
+            commonMqtt.stop_paho()
+        registry.on_stop()
         close_traci()

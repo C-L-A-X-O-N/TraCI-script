@@ -2,22 +2,25 @@ import traci
 
 import simulation.config
 from util.converter import convert_to_latlong
-from util.mqtt import publish
+from util.mqtt import registry
 
 
-def send_first_step_data():
-    publish("traci/lane/position", collect_lane_position())
-    publish("traci/traffic_light/position", collect_traffic_light_position())
+def send_first_step_data(mqtt_client):
+    mqtt_client.publish("traci/lane/position", collect_lane_position())
+    mqtt_client.publish("traci/traffic_light/position", collect_traffic_light_position())
 
 def collect_simulation_data(is_first_step: bool, blocked_vehicles: dict):
+    clients = registry.get_clients()
+    if len(clients) > 0:
+        # Permet d'envoyer que une seul fois position des feux et des lanes qui ne change pa spendant la sumulation
+        vehicles = collect_vehicle(blocked_vehicles)
+        lights = collect_traffic_light_state()
+        lanes = collect_lane_state()
 
-    # Permet d'envoyer que une seul fois position des feux et des lanes qui ne change pa spendant la sumulation
-    if is_first_step:
-        send_first_step_data()
-
-    publish("traci/vehicle/position", collect_vehicle(blocked_vehicles))
-    publish("traci/traffic_light/state", collect_traffic_light_state())
-    publish("traci/lane/state", collect_lane_state())
+        for client in clients:
+            client.publish("traci/vehicle/position", vehicles)
+            client.publish("traci/traffic_light/state", lights)
+            client.publish("traci/lane/state", lanes)
 
 def collect_vehicle(blocked_vehicles: dict):
     vehicle_ids = traci.vehicle.getIDList()
