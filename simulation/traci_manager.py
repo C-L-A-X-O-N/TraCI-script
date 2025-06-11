@@ -1,12 +1,7 @@
 import traci, os
 from simulation import config
 from simulation.config import SUMO_HOME
-
-import logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.DEBUG,
-)
+from util.logger import logger
 
 def start_traci():
     host = os.environ.get("SUMO_HOST", "localhost")
@@ -15,4 +10,5 @@ def start_traci():
     traci.init(port=port, host=host)
 
 def close_traci():
+    logger.info("Closing TraCI connection...")
     traci.close()

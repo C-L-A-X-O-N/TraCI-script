@@ -1,15 +1,9 @@
 import json, os
-import logging
-from logging import Logger
+from util.logger import logger
 
 import paho.mqtt.client as mqtt
 
 client = mqtt.Client()
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.DEBUG,
-)
 
 def run_paho():
     try:
@@ -42,6 +36,7 @@ def on_message(client, userdata, msg):
         send_first_step_data()
 
 def stop_paho():
+    logger.info("Stopping MQTT client...")
     client.loop_stop()
     client.disconnect()
 

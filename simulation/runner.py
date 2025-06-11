@@ -7,6 +7,7 @@ from simulation.simulation_getter import collect_simulation_data
 from simulation.simulation_setter import accidents_generator, accidents_liberator
 from simulation.traci_manager import start_traci, close_traci
 from util.mqtt import run_paho, stop_paho
+from util.logger import logger
 
 
 def run_simulation():
@@ -32,13 +33,14 @@ def run_simulation():
                 sleep(1)
                 is_first_step = False
                 step_count += 1
-                print("toto")
             except traci.TraCIException as e:
-                print(f"TraCI exception occurred: {e}")
+                logger.error(f"TraCI exception occurred: {e}")
 
         stop_paho()
         close_traci()
         run_simulation()
+    except KeyboardInterrupt:
+        logger.info("Simulation interrupted by user.")
 
     finally:
         stop_paho()
