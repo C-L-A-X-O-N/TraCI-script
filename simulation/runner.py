@@ -23,14 +23,14 @@ def run_simulation():
         # Tourne tant que il y a au moins un vehicule
         while traci.simulation.getMinExpectedNumber() > 0 and step_count < (STEP_MAX - 20) :
             try:
-                while step_count<20:
+                while step_count<80:
                     traci.simulationStep()
                     step_count += 1
                 accidents_generator(blocked_vehicles, step_count)
                 accidents_liberator(blocked_vehicles, step_count)
                 collect_simulation_data(is_first_step, blocked_vehicles)
                 traci.simulationStep()
-                sleep(1)
+                sleep(0.1)
                 is_first_step = False
                 step_count += 1
             except traci.TraCIException as e:
