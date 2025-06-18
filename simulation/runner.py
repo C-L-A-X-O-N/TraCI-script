@@ -16,17 +16,22 @@ def on_init_request(msg, mqttClient):
 def run_simulation():
     commonMqtt = None
     try:
-        commonMqtt = MqttClient(host=os.environ.get('MQTT_HOST', 'localhost'), port=int(os.environ.get('MQTT_PORT', 1883)), subscribes={
-            "traci/node/start": on_init_request
-        })
-        readNetFile()
         start_traci()
-
-        commonMqtt.publish("traci/start", "")
+        readNetFile()
 
         is_first_step = True
         step_count = 0
         blocked_vehicles = {}
+
+        while step_count<20:
+            logger.debug(f"Skipping step {step_count} for initialization.")
+            traci.simulationStep()
+            step_count += 1
+
+        commonMqtt = MqttClient(host=os.environ.get('MQTT_HOST', 'localhost'), port=int(os.environ.get('MQTT_PORT', 1883)), subscribes={
+            "traci/node/start": on_init_request
+        })
+        commonMqtt.publish("traci/start", "")
 
         # Tourne tant que il y a au moins un vehicule
         while traci.simulation.getMinExpectedNumber() > 0 and step_count < (STEP_MAX - 20) :
