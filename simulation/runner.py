@@ -23,7 +23,7 @@ def run_simulation():
         step_count = 0
         blocked_vehicles = {}
 
-        while step_count<20:
+        while step_count<100:
             logger.debug(f"Skipping step {step_count} for initialization.")
             traci.simulationStep()
             step_count += 1
