@@ -6,8 +6,44 @@ from util.mqtt import registry
 
 
 def send_first_step_data(mqtt_client):
-    mqtt_client.publish("traci/lane/position", collect_lane_position())
-    mqtt_client.publish("traci/traffic_light/position", collect_traffic_light_position())
+    mqtt_client.publish_with_bounds("traci/lane/position", collect_lane_position())
+    mqtt_client.publish_with_bounds("traci/traffic_light/position", collect_traffic_light_position())
+
+def get_zones():
+    # we want to divide the zone into 9 sub-zones
+    zones = []
+    bbox = traci.simulation.getNetBoundary()
+    north_west, south_east = bbox
+    lat_min, lon_min = convert_to_latlong(north_west[0], north_west[1])
+    lat_max, lon_max = convert_to_latlong(south_east[0], south_east[1])
+    lat_step = (lat_max - lat_min) / 3
+    lon_step = (lon_max - lon_min) / 3
+    for i in range(3):
+        for j in range(3):
+            zone_lat_min = lat_min + i * lat_step
+            zone_lon_min = lon_min + j * lon_step
+            zone_lat_max = zone_lat_min + lat_step
+            zone_lon_max = zone_lon_min + lon_step
+            zones.append({
+                "zone": (i + 1) * (j + 1),
+                "lat_min": zone_lat_min,
+                "lon_min": zone_lon_min,
+                "lat_max": zone_lat_max,
+                "lon_max": zone_lon_max
+            })
+    return zones
+
+def get_zone_boundaries(zone):
+    zones = get_zones()
+    for z in zones:
+        if z["zone"] == zone:
+            return {
+                "lat_min": z["lat_min"],
+                "lon_min": z["lon_min"],
+                "lat_max": z["lat_max"],
+                "lon_max": z["lon_max"]
+            }
+    return None
 
 def collect_simulation_data(is_first_step: bool, blocked_vehicles: dict):
     clients = registry.get_clients()
@@ -61,8 +97,7 @@ def collect_traffic_light_position():
                     "in_lane": in_lane,
                     "out_lane": out_lane,
                     "via_lane": via_lane,
-                    "stop_lat": lat,
-                    "stop_lon": lon
+                    "position": [lat, lon],
                 })
     return traffic_light_data
 

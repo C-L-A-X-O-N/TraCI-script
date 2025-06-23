@@ -8,18 +8,31 @@ class MqttClient:
     logger = None
     host = None
     port = None
+    bounds = None
     subscribes = {}
     _on_disconnect = None
     _on_connect = None
 
-    def __init__(self, host, port, subscribes, on_disconnect=None, on_connect=None):
+    def __init__(self, host, port, zone, subscribes, on_disconnect=None, on_connect=None):
         self.host = host
         self.port = port
-        self.client = mqtt.Client()
-        self.logger = logging.getLogger(__name__ + ":" + host + ":" + str(port))
-        self.subscribes = subscribes
+        from simulation.simulation_getter import get_zone_boundaries
+        bound = get_zone_boundaries(zone) if zone is not None else None
+        if bound is not None:
+            self.bounds = {
+                "lat_min": bound["lat_min"],
+                "lon_min": bound["lon_min"],
+                "lat_max": bound["lat_max"],
+                "lon_max": bound["lon_max"]
+            }
+        else:
+            self.bounds = None
         self._on_disconnect = on_disconnect
         self._on_connect = on_connect
+        self.client = mqtt.Client()
+        self.logger = logging.getLogger(__name__ + ":" + host + ":" + str(port))
+        self.logger.info(f"Creating MQTT client for {host}:{port} with zone {zone} and bounds {self.bounds}")
+        self.subscribes = subscribes
         self.run_paho()
         
 
@@ -59,9 +72,54 @@ class MqttClient:
         self.client.loop_stop()
         self.client.disconnect()
         self._on_disconnect(self) if self._on_disconnect else None
+    
+    def is_within_bounds(self, position):
+        if self.bounds is None:
+            return True
+        lat, lon = position
+        return (self.bounds["lat_min"] <= lat <= self.bounds["lat_max"] and
+                self.bounds["lon_min"] <= lon <= self.bounds["lon_max"])
 
     def publish(self, topic, payload):
         self.client.publish(topic, json.dumps(payload))
+
+    def publish_with_bounds(self, topic, payload):
+        if self.bounds is None:
+            self.logger.warning("No bounds set for this client, publishing without bounds.")
+            self.publish(topic, payload)
+            return
+        
+        if isinstance(payload, list):
+            new_payload = []
+            for i in range(len(payload)):
+                item = payload[i]
+                if "position" in item:
+                    position = item["position"]
+                    if self.is_within_bounds(position):
+                        new_payload.append(item)
+
+                elif "shape" in item:
+                    shape = item["shape"]
+                    if isinstance(shape, list) and len(shape) >= 2:
+                        position = shape[0]
+                        if self.is_within_bounds(position):
+                            new_payload.append(item)
+                    else:
+                        self.logger.warning(f"Payload item {i} shape is not a valid position, not publishing.")
+            payload = new_payload
+
+        elif isinstance(payload, dict) and "position" in payload:
+            position = payload["position"]
+            if not self.is_within_bounds(position):
+                self.logger.warning(f"Payload position {position} is out of bounds, not publishing.")
+                return
+            
+        else:
+            self.logger.warning("Payload does not contain position information, publishing without bounds.")
+            self.logger.debug(f"Payload type: {type(payload)}")
+            
+        self.publish(topic, payload)
+                        
 
 class MqttUpstreamRegistry:
     clients = []
@@ -74,27 +132,22 @@ class MqttUpstreamRegistry:
         else:
             self.logger.warning("Attempted to close a client that is not registered: " + str(client))
 
-    def add_client(self, host, port, subscribes=None):
+    def add_client(self, host, port, zone, subscribes=None):
         self.logger.debug("New client registered at " + host + ":" + str(port))
         def on_disconnect(msg, client):
             client.stop_paho()
 
         from simulation.simulation_getter import send_first_step_data
 
-        def on_connect(client):
-            self.logger.info(f"Client connected to {host}:{port}")
-            send_first_step_data(client)
-            self.clients.append(client)
-
         if subscribes is None:
             subscribes = {}
         subscribes['traci/node/stop'] = on_disconnect
         subscribes['traci/first_data'] = send_first_step_data
         # Create the client first with a placeholder for on_connect
-        client = MqttClient(host, port, subscribes=subscribes, on_disconnect=self.close_client, on_connect=None)
-        # Now set the correct on_connect with access to the client instance
-        client._on_connect = lambda c: on_connect(c)
-
+        client = MqttClient(host, port, zone, subscribes=subscribes, on_disconnect=self.close_client, on_connect=None)
+        self.logger.info(f"Client connected to {host}:{port}")
+        send_first_step_data(client)
+        self.clients.append(client)
 
     def get_clients(self):
         return self.clients

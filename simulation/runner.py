@@ -3,7 +3,7 @@ from time import sleep
 import traci, os, json
 
 from simulation.config import readNetFile, STEP_MAX
-from simulation.simulation_getter import collect_simulation_data, send_first_step_data
+from simulation.simulation_getter import collect_simulation_data, get_zones
 from simulation.simulation_setter import accidents_generator, accidents_liberator
 from simulation.traci_manager import start_traci, close_traci
 from util.mqtt import MqttClient, registry
@@ -11,7 +11,7 @@ from util.logger import logger
 
 def on_init_request(msg, mqttClient):
     data = json.loads(msg.payload.decode('utf-8'))
-    registry.add_client(data['host'], data['port'])
+    registry.add_client(data['host'], data['port'], data['zone'] if 'zone' in data else None)
 
 def run_simulation():
     commonMqtt = None
@@ -28,10 +28,12 @@ def run_simulation():
             traci.simulationStep()
             step_count += 1
 
-        commonMqtt = MqttClient(host=os.environ.get('MQTT_HOST', 'localhost'), port=int(os.environ.get('MQTT_PORT', 1883)), subscribes={
+        commonMqtt = MqttClient(host=os.environ.get('MQTT_HOST', 'localhost'), port=int(os.environ.get('MQTT_PORT', 1883)), zone=None, subscribes={
             "traci/node/start": on_init_request
         })
         commonMqtt.publish("traci/start", "")
+
+        logger.info(f"Network boundary: {get_zones()}")
 
         # Tourne tant que il y a au moins un vehicule
         while traci.simulation.getMinExpectedNumber() > 0 and step_count < (STEP_MAX - 20) :
