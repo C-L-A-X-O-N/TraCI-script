@@ -79,16 +79,21 @@ class MqttUpstreamRegistry:
         def on_disconnect(msg, client):
             client.stop_paho()
 
+        from simulation.simulation_getter import send_first_step_data
+
         def on_connect(client):
             self.logger.info(f"Client connected to {host}:{port}")
-            from simulation.simulation_getter import send_first_step_data
             send_first_step_data(client)
             self.clients.append(client)
 
         if subscribes is None:
             subscribes = {}
         subscribes['traci/node/stop'] = on_disconnect
-        client = MqttClient(host, port, subscribes=subscribes, on_disconnect=self.close_client, on_connect=lambda c: on_connect(client))
+        subscribes['traci/first_data'] = send_first_step_data
+        # Create the client first with a placeholder for on_connect
+        client = MqttClient(host, port, subscribes=subscribes, on_disconnect=self.close_client, on_connect=None)
+        # Now set the correct on_connect with access to the client instance
+        client._on_connect = lambda c: on_connect(c)
 
 
     def get_clients(self):
