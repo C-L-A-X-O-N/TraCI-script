@@ -13,11 +13,14 @@ class MqttClient:
     _on_disconnect = None
     _on_connect = None
 
+    subscribed_lanes = {}
+    subscribed_traffic_lights = {}
+
     def __init__(self, host, port, zone, subscribes, on_disconnect=None, on_connect=None):
         self.host = host
         self.port = port
         from simulation.simulation_getter import get_zone_boundaries
-        bound = get_zone_boundaries(zone) if zone is not None else None
+        bound = get_zone_boundaries(zone)
         if bound is not None:
             self.bounds = {
                 "lat_min": bound["lat_min"],
@@ -89,7 +92,24 @@ class MqttClient:
             self.publish(topic, payload)
             return
         
-        if isinstance(payload, list):
+        if topic == "traci/lane/state":
+            new_payload = []
+            for i in range(len(payload)):
+                item = payload[i]
+                if "id" in item:
+                    if item["id"] in self.subscribed_lanes.keys():
+                        new_payload.append(item)
+            payload = new_payload
+        elif topic == "traci/traffic_light/state":
+            new_payload = []
+            logger.info(f"Filtering traffic lights with ids: {self.subscribed_traffic_lights.keys()}")
+            for i in range(len(payload)):
+                item = payload[i]
+                if "id" in item:
+                    if item["id"] in self.subscribed_traffic_lights.keys():
+                        new_payload.append(item)
+            payload = new_payload
+        elif isinstance(payload, list):
             new_payload = []
             for i in range(len(payload)):
                 item = payload[i]
@@ -97,23 +117,22 @@ class MqttClient:
                     position = item["position"]
                     if self.is_within_bounds(position):
                         new_payload.append(item)
+                        if topic == "traci/traffic_light/position":
+                            self.subscribed_traffic_lights[item["id"]] = True
 
                 elif "shape" in item:
                     shape = item["shape"]
                     if isinstance(shape, list) and len(shape) >= 2:
-                        position = shape[0]
-                        if self.is_within_bounds(position):
-                            new_payload.append(item)
+                        for pos in shape:
+                            if self.is_within_bounds(pos):
+                                new_payload.append(item)
+                                if topic == "traci/lane/position":
+                                    self.subscribed_lanes[item["id"]] = True
+                                    break
                     else:
                         self.logger.warning(f"Payload item {i} shape is not a valid position, not publishing.")
             payload = new_payload
-
-        elif isinstance(payload, dict) and "position" in payload:
-            position = payload["position"]
-            if not self.is_within_bounds(position):
-                self.logger.warning(f"Payload position {position} is out of bounds, not publishing.")
-                return
-            
+        
         else:
             self.logger.warning("Payload does not contain position information, publishing without bounds.")
             self.logger.debug(f"Payload type: {type(payload)}")

@@ -1,4 +1,4 @@
-import traci
+import traci, logging
 
 import simulation.config
 from util.converter import convert_to_latlong
@@ -34,6 +34,9 @@ def get_zones():
     return zones
 
 def get_zone_boundaries(zone):
+    if zone is None:
+        return None
+    zone = int(zone)
     zones = get_zones()
     for z in zones:
         if z["zone"] == zone:
@@ -54,9 +57,9 @@ def collect_simulation_data(is_first_step: bool, blocked_vehicles: dict):
         lanes = collect_lane_state()
 
         for client in clients:
-            client.publish("traci/vehicle/position", vehicles)
-            client.publish("traci/traffic_light/state", lights)
-            client.publish("traci/lane/state", lanes)
+            client.publish_with_bounds("traci/vehicle/position", vehicles)
+            client.publish_with_bounds("traci/traffic_light/state", lights)
+            client.publish_with_bounds("traci/lane/state", lanes)
 
 def collect_vehicle(blocked_vehicles: dict):
     vehicle_ids = traci.vehicle.getIDList()

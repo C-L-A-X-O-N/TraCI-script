@@ -28,10 +28,11 @@ def run_simulation():
             traci.simulationStep()
             step_count += 1
 
+        def _on_co(_):
+            commonMqtt.publish("traci/start", "")
         commonMqtt = MqttClient(host=os.environ.get('MQTT_HOST', 'localhost'), port=int(os.environ.get('MQTT_PORT', 1883)), zone=None, subscribes={
             "traci/node/start": on_init_request
-        })
-        commonMqtt.publish("traci/start", "")
+        }, on_connect=_on_co)
 
         logger.info(f"Network boundary: {get_zones()}")
 
