@@ -13,6 +13,8 @@ TRAIN_TRIP_FILE = os.path.join("data", "map.train_trip.xml")
 TRAIN_ROU_FILE = os.path.join("data", "map.train.rou.xml")
 BUS_TRIP_FILE = os.path.join("data", "map.bus_trip.xml")
 BUS_ROU_FILE = os.path.join("data", "map.bus.rou.xml")
+AMBULANCE_TRIP_FILE = os.path.join("data", "map.ambulance_trip.xml")
+AMBULANCE_ROU_FILE = os.path.join("data", "map.ambulance.rou.xml")
 SUMO_HOME = os.environ.get("SUMO_HOME")
 SUMO_BINARY = os.path.join(SUMO_HOME, "bin", "sumo")
 NET_READER = None
@@ -101,6 +103,30 @@ command_rou_creation = [
     "--no-warnings"
 ]
 
+command_ambulance_trip_creation = [
+    "python",
+    os.path.join(SUMO_HOME, "tools", "randomTrips.py"),
+    "-n", NET_FILE,
+    "-o", AMBULANCE_TRIP_FILE,
+    "--random-departpos",
+    "-b", "0",
+    "-e", STEP_MAX.__str__(),
+    "-p", "15",
+    "--vehicle-class", "emergency",
+    "--prefix", "emergency_",
+    "--allow-fringe",
+    "--validate"
+]
+
+command_ambulance_rou_creation = [
+    "duarouter",
+    "--net-file", NET_FILE,
+    "--route-files", AMBULANCE_TRIP_FILE,
+    "--output-file", AMBULANCE_ROU_FILE,
+    "--ignore-errors",
+    "--no-warnings"
+]
+
 def process_osm_tranformation():
     try:
         subprocess.run(command_osm_transformation, stdout=subprocess.DEVNULL, check=True)
@@ -164,6 +190,24 @@ def process_bus_rou_generation():
     except FileNotFoundError:
         print("duarouter introuvable.")
 
+def process_ambulance_trip_generation():
+    try:
+        subprocess.run(command_ambulance_trip_creation, stdout=subprocess.DEVNULL, check=True)
+        #print("Fichiers ambulance trip générés avec succès.")
+    except subprocess.CalledProcessError as e:
+        print("Erreur lors de randomTrips pour les ambulances :", e)
+    except FileNotFoundError:
+        print("randomTrips introuvable.")
+
+def process_ambulance_rou_generation():
+    try:
+        subprocess.run(command_ambulance_rou_creation, stdout=subprocess.DEVNULL, check=True)
+        #print("Fichiers ambulance route générés avec succès.")
+    except subprocess.CalledProcessError as e:
+        print("Erreur lors de duarouter pour les ambulances :", e)
+    except FileNotFoundError:
+        print("duarouter introuvable.")
+
 def readNetFile():
     global NET_READER
     if NET_READER is None:
@@ -190,5 +234,9 @@ def process_files():
     process_bus_trip_generation()
     logger.info("Génération des fichiers BUS ROU...")
     process_bus_rou_generation()
+    logger.info("Génération des fichiers AMBULANCE TRIP...")
+    process_ambulance_trip_generation()
+    logger.info("Génération des fichiers AMBULANCE ROU...")
+    process_ambulance_rou_generation()
     logger.info("Chargement du fichier NET...")
     readNetFile()
