@@ -25,6 +25,7 @@ class MqttClient:
             self.bounds = None
         self._on_disconnect = on_disconnect
         self._on_connect = on_connect
+        self.zone = zone
         self.client = mqtt.Client()
         self.logger = logging.getLogger(__name__ + ":" + host + ":" + str(port))
         self.logger.info(f"Creating MQTT client for {host}:{port} with zone {zone} and bounds {self.bounds}")
@@ -52,7 +53,7 @@ class MqttClient:
         else:
             self.logger.error(f"Failed to connect to MQTT broker, return code {rc}")
         self._on_connect(self) if self._on_connect else None
-        self.logger.debug("MQTT client is ready to receive messages.")
+        self.logger.info("MQTT client is ready to receive messages.")
 
     def on_message(self, client, userdata, msg):
         topic = msg.topic
@@ -85,6 +86,8 @@ class MqttClient:
             self.publish(topic, payload)
             return
         
+        self.logger.debug(f"Publishing to topic {topic} with bounds {self.bounds}")
+        
         if topic == "traci/lane/state":
             new_payload = []
             d = self.subscribed_lanes.keys()
@@ -113,23 +116,12 @@ class MqttClient:
                         if topic == "traci/traffic_light/position":
                             self.subscribed_traffic_lights[item["id"]] = True
 
-                elif "shape" in item:
-                    shape = item["shape"]
-                    if isinstance(shape, list) and len(shape) >= 2:
-                        for pos in shape:
-                            if self.is_within_bounds(pos):
-                                new_payload.append(item)
-                                if topic == "traci/lane/position":
-                                    self.subscribed_lanes[item["id"]] = True
-                                    break
-                    else:
-                        self.logger.warning(f"Payload item {i} shape is not a valid position, not publishing.")
             self.logger.debug(f"Filtered payload size: {len(new_payload)} out of {len(payload)}")
             payload = new_payload
         
         else:
             self.logger.warning("Payload does not contain position information, publishing without bounds.")
-            self.logger.debug(f"Payload type: {type(payload)}")
+            self.logger.info(f"Payload type: {type(payload)}")
             
         self.publish(topic, payload)
                         
@@ -140,13 +132,13 @@ class MqttUpstreamRegistry:
 
     def close_client(self, client):
         if client in self.clients:
-            self.logger.debug("Removing client " + str(client))
+            self.logger.info("Removing client " + str(client))
             self.clients.remove(client)
         else:
             self.logger.warning("Attempted to close a client that is not registered: " + str(client))
 
     def add_client(self, host, port, zone, subscribes=None):
-        self.logger.debug("New client registered at " + host + ":" + str(port))
+        self.logger.info("New client registered at " + host + ":" + str(port))
         def on_disconnect(msg, client):
             client.stop_paho()
 

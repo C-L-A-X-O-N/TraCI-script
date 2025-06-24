@@ -3,10 +3,14 @@ import traci, logging
 import simulation.config
 from util.converter import convert_to_latlong
 from util.mqtt import registry
+import os
+import json
+import random
 
 
 def send_first_step_data(mqtt_client):
-    mqtt_client.publish_with_bounds("traci/lane/position", collect_lane_position())
+    logging.info(f"Sending first step data (zone {mqtt_client.zone})...")
+    mqtt_client.publish_with_bounds("traci/lane/position", collect_lane_position(mqtt_client.zone))
     mqtt_client.publish_with_bounds("traci/traffic_light/position", collect_traffic_light_position())
 
 def get_zones():
@@ -48,15 +52,26 @@ def get_zone_boundaries(zone):
             }
     return None
 
+def get_zone_from_position(lat, lon):
+    zones = get_zones()
+    for z in zones:
+        if (z["lat_min"] <= lat <= z["lat_max"]) and (z["lon_min"] <= lon <= z["lon_max"]):
+            return z["zone"]
+    return None
+
 def collect_simulation_data(is_first_step: bool, blocked_vehicles: dict):
     clients = registry.get_clients()
     if len(clients) > 0:
         # Permet d'envoyer que une seul fois position des feux et des lanes qui ne change pa spendant la sumulation
+        logging.debug("Collecting vehicles...")
         vehicles = collect_vehicle(blocked_vehicles)
+        logging.debug("Collecting traffic light...")
         lights = collect_traffic_light_state()
+        logging.debug("Collecting lanes...")
         lanes = collect_lane_state()
 
         for client in clients:
+            logging.debug(f"Publishing data to zone {client.zone}...")
             client.publish_with_bounds("traci/vehicle/position", vehicles)
             client.publish_with_bounds("traci/traffic_light/state", lights)
             client.publish_with_bounds("traci/lane/state", lanes)
@@ -82,11 +97,21 @@ def collect_vehicle(blocked_vehicles: dict):
 
     return vehicle_data
 
-def collect_traffic_light_position():
-    traffic_light_ids = traci.trafficlight.getIDList()
-    traffic_light_data = []
+traffic_lights_position = None
 
-    for traffic_light in traffic_light_ids:
+def collect_traffic_light_position():
+    global traffic_lights_position
+    if traffic_lights_position is not None:
+        return traffic_lights_position
+    
+    logging.info("Collecting traffic light position data...")
+    
+    import concurrent.futures
+
+    traffic_light_ids = traci.trafficlight.getIDList()
+
+    def process_traffic_light(traffic_light):
+        data = []
         for link_group in traci.trafficlight.getControlledLinks(traffic_light):
             for in_lane, out_lane, via_lane in link_group:
                 shape = traci.lane.getShape(in_lane)
@@ -95,13 +120,23 @@ def collect_traffic_light_position():
                 x_stop, y_stop = shape[-1]
                 lat, lon = convert_to_latlong(x_stop, y_stop)
 
-                traffic_light_data.append({
+                data.append({
                     "id": traffic_light,
                     "in_lane": in_lane,
                     "out_lane": out_lane,
                     "via_lane": via_lane,
                     "position": [lat, lon],
                 })
+        return data
+
+    traffic_light_data = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+        results = executor.map(process_traffic_light, traffic_light_ids)
+        for res in results:
+            traffic_light_data.extend(res)
+            
+    traffic_lights_position = traffic_light_data
+    logging.info(f"Collected {len(traffic_lights_position)} traffic light position data")
     return traffic_light_data
 
 def collect_traffic_light_state():
@@ -131,41 +166,126 @@ def classify_lane(allowed):
         return "pedestrian"
     return "unknown"
 
-def collect_lane_position():
+lanes_position = None
+
+def collect_lane_position(zone=None, batch_size=1000, cache_file="lane_positions_cache.json"):
+    global lanes_position
+    if lanes_position is not None:
+        if zone is not None and str(zone) in lanes_position:
+            return lanes_position[str(zone)]
+        # Merge all lane lists if zone is None or not found
+        merged = []
+        for lane_list in lanes_position.values():
+            merged.extend(lane_list)
+        return merged
+
+    # Try to load from cache
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, "r") as f:
+                lanes_position = json.load(f)
+                logging.info(f"Loaded lane position data from cache")
+                return lanes_position
+        except Exception as e:
+            logging.warning(f"Failed to load lane position cache: {e}")
+
+    logging.info("Collecting lane position data...")
+
     lane_ids = traci.lane.getIDList()
+    lane_data_by_zone = {}
+
+    import concurrent.futures
+
+    def process_batch(batch):
+        batch_data = []
+        for lane in batch:
+            shapes = traci.lane.getShape(lane)
+            if not shapes:
+                continue
+            zones = {}
+            shape_data = []
+            for shape in shapes:
+                [x, y] = convert_to_latlong(shape[0], shape[1])
+                shape_data.append((x, y))
+                zone = get_zone_from_position(x, y)
+                if zone is not None:
+                    zones[zone] = True
+
+            edgeID = traci.lane.getEdgeID(lane)
+            edge = simulation.config.NET_READER.getEdge(edgeID) if edgeID in simulation.config.NET_READER._id2edge else None
+            priority = edge.getPriority() if edge is not None else 0
+
+            lane_info = {
+                "id": lane,
+                "shape": shape_data,
+                "zones": list(zones.keys()),
+                "priority": priority,
+                "type": classify_lane(traci.lane.getAllowed(lane))
+            }
+            for zone in zones.keys():
+                batch_data.append((zone, lane_info))
+        return batch_data
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+        futures = []
+        for i in range(0, len(lane_ids), batch_size):
+            batch = lane_ids[i:i+batch_size]
+            futures.append(executor.submit(process_batch, batch))
+        for i, future in enumerate(futures):
+            for zone, lane_info in future.result():
+                if str(zone) not in lane_data_by_zone:
+                    lane_data_by_zone[str(zone)] = []
+                lane_data_by_zone[str(zone)].append(lane_info)
+            logging.info(f"Processed lanes {i * batch_size} to {min((i + 1) * batch_size, len(lane_ids))}")
+
+    lanes_position = lane_data_by_zone
+
+    # Save to cache
+    try:
+        with open(cache_file, "w") as f:
+            json.dump(lanes_position, f)
+        logging.info(f"Saved lane position data to cache")
+    except Exception as e:
+        logging.warning(f"Failed to save lane position cache: {e}")
+
+    return collect_lane_position(zone=zone)
+
+zone_selected = 1
+
+def collect_lane_state(batch_size=10000):
+    import concurrent.futures
+    global lanes_position, zone_selected
+
+    lanes = lanes_position[str(zone_selected)]
+    zone_selected += 1
+    if zone_selected > len(lanes_position):
+        zone_selected = 1
     lane_data = []
 
-    for lane in lane_ids:
-        shapes = traci.lane.getShape(lane)
-        if not shapes:
-            continue
-        shape_data = []
-        for shape in shapes:
-            shape_data.append((convert_to_latlong(shape[0], shape[1])))
+    def process_batch(batch):
+        batch_data = []
+        for lane in batch:
+            lane = lane["id"]
+            occupancy = None
+            # 1 chance sur 3 de récupérer l'occupancy
+            if random.randint(1, 3) == 1:
+                try:
+                    occupancy = traci.lane.getLastStepOccupancy(lane)
+                except Exception:
+                    occupancy = None
+            batch_data.append({
+                "id": lane,
+                "traffic_jam": occupancy,
+            })
+        return batch_data
 
-
-        edgeID = traci.lane.getEdgeID(lane)
-
-        edge = simulation.config.NET_READER.getEdge(edgeID) if edgeID in simulation.config.NET_READER._id2edge else None
-        priority = edge.getPriority() if edge is not None else 0
-
-        lane_data.append({
-            "id": lane,
-            "shape": shape_data,
-            "priority": priority,
-            "type": classify_lane(traci.lane.getAllowed(lane))
-        })
-
-    return lane_data
-
-def collect_lane_state():
-    lane_ids = traci.lane.getIDList()
-    lane_data = []
-
-    for lane in lane_ids:
-        lane_data.append({
-            "id": lane,
-            "traffic_jam": traci.lane.getLastStepOccupancy(lane),
-        })
+    max_workers = min(32, (len(lanes) // batch_size) + 1)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for i in range(0, len(lanes), batch_size):
+            batch = lanes[i:i+batch_size]
+            futures.append(executor.submit(process_batch, batch))
+        for future in concurrent.futures.as_completed(futures):
+            lane_data.extend(future.result())
 
     return lane_data

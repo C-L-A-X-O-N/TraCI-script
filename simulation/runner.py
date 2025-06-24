@@ -3,7 +3,7 @@ from time import sleep
 import traci, os, json
 
 from simulation.config import readNetFile, STEP_MAX
-from simulation.simulation_getter import collect_simulation_data, get_zones
+from simulation.simulation_getter import collect_simulation_data, get_zones, collect_lane_position
 from simulation.simulation_setter import accidents_generator, accidents_liberator
 from simulation.traci_manager import start_traci, close_traci
 from util.mqtt import MqttClient, registry
@@ -18,6 +18,9 @@ def run_simulation():
     try:
         start_traci()
         readNetFile()
+
+        logger.info("Loading lanes position...")
+        collect_lane_position()
 
         is_first_step = True
         step_count = 0
@@ -43,11 +46,15 @@ def run_simulation():
                     logger.debug(f"Skipping step {step_count} for initialization.")
                     traci.simulationStep()
                     step_count += 1
+                logger.info(f"Step {step_count} - Running simulation step...")
+                logger.debug(f"Generating accidents for step {step_count}...")
                 accidents_generator(blocked_vehicles, step_count)
+                logger.debug(f"Releasing accidents for step {step_count}...")
                 accidents_liberator(blocked_vehicles, step_count)
+                logger.debug(f"Collecting simulation data for step {step_count}...")
                 collect_simulation_data(is_first_step, blocked_vehicles)
+                logger.debug(f"Publishing simulation data for step {step_count}...")
                 traci.simulationStep()
-                sleep(1)
                 is_first_step = False
                 step_count += 1
             except traci.TraCIException as e:
