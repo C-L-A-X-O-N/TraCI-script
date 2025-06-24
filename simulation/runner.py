@@ -13,11 +13,24 @@ def on_init_request(msg, mqttClient):
     data = json.loads(msg.payload.decode('utf-8'))
     registry.add_client(data['host'], data['port'])
 
+from simulation.simulation_setter import set_traffic_light_state
+
+def on_traffic_light_state_change(msg, mqttClient):
+    try:
+        data = json.loads(msg.payload.decode("utf-8"))
+        light_id = data["id"]
+        state = data["state"]
+        logger.info(f"[MQTT] Setting traffic light {light_id} to state {state}")
+        set_traffic_light_state(light_id, state)
+    except Exception as e:
+        logger.error(f"Error handling traffic light state change: {e}")
+
 def run_simulation():
     commonMqtt = None
     try:
         commonMqtt = MqttClient(host=os.environ.get('MQTT_HOST', 'localhost'), port=int(os.environ.get('MQTT_PORT', 1883)), subscribes={
-            "traci/node/start": on_init_request
+            "traci/node/start": on_init_request,
+            "claxon/traffic_light/set_state": on_traffic_light_state_change
         })
         readNetFile()
         start_traci()

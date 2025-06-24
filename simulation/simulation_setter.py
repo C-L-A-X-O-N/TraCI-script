@@ -20,3 +20,10 @@ def accidents_liberator(blocked_vehicles: dict[str, int], step: int):
             logger.info(f"Accident liberated for vehicle {vehicule} at step {step}")
             del blocked_vehicles[vehicule]
             traci.vehicle.setSpeed(vehicule, -1)
+
+def set_traffic_light_state(light_id: str, state: str):
+    logger.info(f"Setting traffic light {light_id} to state {state}")
+    try:
+        traci.trafficlight.setRedYellowGreenState(light_id, state)
+    except Exception as e:
+        logger.error(f"Failed to set traffic light {light_id}: {e}")
