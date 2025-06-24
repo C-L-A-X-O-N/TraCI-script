@@ -28,13 +28,13 @@ def run_simulation():
             traci.simulationStep()
             step_count += 1
 
+        logger.info(f"Network boundary: {get_zones()}")
+
         def _on_co(_):
             commonMqtt.publish("traci/start", "")
         commonMqtt = MqttClient(host=os.environ.get('MQTT_HOST', 'localhost'), port=int(os.environ.get('MQTT_PORT', 1883)), zone=None, subscribes={
             "traci/node/start": on_init_request
         }, on_connect=_on_co)
-
-        logger.info(f"Network boundary: {get_zones()}")
 
         # Tourne tant que il y a au moins un vehicule
         while traci.simulation.getMinExpectedNumber() > 0 and step_count < (STEP_MAX - 20) :

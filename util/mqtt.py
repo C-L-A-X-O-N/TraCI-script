@@ -4,21 +4,14 @@ import paho.mqtt.client as mqtt
 
 
 class MqttClient:
-    client = None
-    logger = None
-    host = None
-    port = None
-    bounds = None
-    subscribes = {}
     _on_disconnect = None
     _on_connect = None
-
-    subscribed_lanes = {}
-    subscribed_traffic_lights = {}
 
     def __init__(self, host, port, zone, subscribes, on_disconnect=None, on_connect=None):
         self.host = host
         self.port = port
+        self.subscribed_lanes = {}
+        self.subscribed_traffic_lights = {}
         from simulation.simulation_getter import get_zone_boundaries
         bound = get_zone_boundaries(zone)
         if bound is not None:
@@ -94,15 +87,15 @@ class MqttClient:
         
         if topic == "traci/lane/state":
             new_payload = []
+            d = self.subscribed_lanes.keys()
             for i in range(len(payload)):
                 item = payload[i]
-                if "id" in item:
-                    if item["id"] in self.subscribed_lanes.keys():
-                        new_payload.append(item)
+                if item["id"] in d:
+                    new_payload.append(item)
+            self.logger.debug(f"Filtered lane state payload size: {len(new_payload)} out of {len(payload)}")
             payload = new_payload
         elif topic == "traci/traffic_light/state":
             new_payload = []
-            logger.info(f"Filtering traffic lights with ids: {self.subscribed_traffic_lights.keys()}")
             for i in range(len(payload)):
                 item = payload[i]
                 if "id" in item:
@@ -131,6 +124,7 @@ class MqttClient:
                                     break
                     else:
                         self.logger.warning(f"Payload item {i} shape is not a valid position, not publishing.")
+            self.logger.debug(f"Filtered payload size: {len(new_payload)} out of {len(payload)}")
             payload = new_payload
         
         else:

@@ -25,7 +25,7 @@ def get_zones():
             zone_lat_max = zone_lat_min + lat_step
             zone_lon_max = zone_lon_min + lon_step
             zones.append({
-                "zone": (i + 1) * (j + 1),
+                "zone": i * 3 + j + 1,
                 "lat_min": zone_lat_min,
                 "lon_min": zone_lon_min,
                 "lat_max": zone_lat_max,
@@ -39,7 +39,7 @@ def get_zone_boundaries(zone):
     zone = int(zone)
     zones = get_zones()
     for z in zones:
-        if z["zone"] == zone:
+        if int(z["zone"]) == zone:
             return {
                 "lat_min": z["lat_min"],
                 "lon_min": z["lon_min"],
