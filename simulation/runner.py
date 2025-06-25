@@ -19,7 +19,7 @@ def run_simulation():
         start_traci()
         readNetFile()
 
-        logger.info("Loading lanes position...")
+        logger.debug("Loading lanes position...")
         collect_lane_position()
 
         is_first_step = True
@@ -42,10 +42,6 @@ def run_simulation():
         # Tourne tant que il y a au moins un vehicule
         while traci.simulation.getMinExpectedNumber() > 0 and step_count < (STEP_MAX - 20) :
             try:
-                while step_count<20:
-                    logger.debug(f"Skipping step {step_count} for initialization.")
-                    traci.simulationStep()
-                    step_count += 1
                 time_start = time.time()
                 logger.info(f"Step {step_count} - Running simulation step...")
                 logger.debug(f"Generating accidents for step {step_count}...")

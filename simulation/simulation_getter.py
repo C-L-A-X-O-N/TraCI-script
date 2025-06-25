@@ -201,6 +201,7 @@ def collect_lane_position(zone=None, batch_size=1000, cache_file="lane_positions
             with open(cache_file, "r") as f:
                 lanes_position = json.load(f)
                 logging.info(f"Loaded lane position data from cache")
+                logging.info(f"Collected {len(lanes_position)} lane position data")
                 return lanes_position
         except Exception as e:
             logging.warning(f"Failed to load lane position cache: {e}")
@@ -263,6 +264,8 @@ def collect_lane_position(zone=None, batch_size=1000, cache_file="lane_positions
         logging.info(f"Saved lane position data to cache")
     except Exception as e:
         logging.warning(f"Failed to save lane position cache: {e}")
+
+    logging.info(f"Collected {len(lanes_position)} lane position data")
 
     return collect_lane_position(zone=zone)
 
