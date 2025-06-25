@@ -1,6 +1,6 @@
 from time import sleep
 
-import traci, os, json
+import traci, os, json, time
 
 from simulation.config import readNetFile, STEP_MAX
 from simulation.simulation_getter import collect_simulation_data, get_zones, collect_lane_position
@@ -46,6 +46,7 @@ def run_simulation():
                     logger.debug(f"Skipping step {step_count} for initialization.")
                     traci.simulationStep()
                     step_count += 1
+                time_start = time.time()
                 logger.info(f"Step {step_count} - Running simulation step...")
                 logger.debug(f"Generating accidents for step {step_count}...")
                 accidents_generator(blocked_vehicles, step_count)
@@ -57,6 +58,12 @@ def run_simulation():
                 traci.simulationStep()
                 is_first_step = False
                 step_count += 1
+                if time.time() - time_start < 2:
+                    sleep(2 - (time.time() - time_start))
+                logger.info(f"Step {step_count} completed in {time.time() - time_start:.2f} seconds.")
+                commonMqtt.publish("traci/step", json.dumps({
+                    "step": step_count,
+                }))
             except traci.TraCIException as e:
                 logger.error(f"TraCI exception occurred: {e}")
 

@@ -105,24 +105,7 @@ class MqttClient:
                     if item["id"] in self.subscribed_traffic_lights.keys():
                         new_payload.append(item)
             payload = new_payload
-        elif isinstance(payload, list):
-            new_payload = []
-            for i in range(len(payload)):
-                item = payload[i]
-                if "position" in item:
-                    position = item["position"]
-                    if self.is_within_bounds(position):
-                        new_payload.append(item)
-                        if topic == "traci/traffic_light/position":
-                            self.subscribed_traffic_lights[item["id"]] = True
-
-            self.logger.debug(f"Filtered payload size: {len(new_payload)} out of {len(payload)}")
-            payload = new_payload
         
-        else:
-            self.logger.warning("Payload does not contain position information, publishing without bounds.")
-            self.logger.info(f"Payload type: {type(payload)}")
-            
         self.publish(topic, payload)
                         
 

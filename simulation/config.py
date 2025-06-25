@@ -42,7 +42,7 @@ command_trip_creation = [
     "--random-departpos",
     "-b", "0",
     "-e", STEP_MAX.__str__(),
-    "-p", "0.1",
+    "-p", "1",
     "--prefix", "veh_",
     "--vehicle-class", "private",
 ]

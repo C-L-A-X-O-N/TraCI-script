@@ -13,23 +13,35 @@ def send_first_step_data(mqtt_client):
     mqtt_client.publish_with_bounds("traci/lane/position", collect_lane_position(mqtt_client.zone))
     mqtt_client.publish_with_bounds("traci/traffic_light/position", collect_traffic_light_position())
 
+def get_max_zone():
+    max_zone = os.environ.get("MAX_ZONE", 9)
+    try:
+        max_zone = int(max_zone)
+    except ValueError:
+        max_zone = 9
+    sqrt = int(max_zone ** 0.5)
+    if sqrt * sqrt != max_zone:
+        raise ValueError("MAX_ZONE must be a perfect square")
+    return max_zone
+
 def get_zones():
-    # we want to divide the zone into 9 sub-zones
     zones = []
     bbox = traci.simulation.getNetBoundary()
     north_west, south_east = bbox
     lat_min, lon_min = convert_to_latlong(north_west[0], north_west[1])
     lat_max, lon_max = convert_to_latlong(south_east[0], south_east[1])
-    lat_step = (lat_max - lat_min) / 3
-    lon_step = (lon_max - lon_min) / 3
-    for i in range(3):
-        for j in range(3):
+    max_zone = get_max_zone()
+    sqr = int(max_zone ** 0.5)
+    lat_step = (lat_max - lat_min) / sqr
+    lon_step = (lon_max - lon_min) / sqr
+    for i in range(sqr):
+        for j in range(sqr):
             zone_lat_min = lat_min + i * lat_step
             zone_lon_min = lon_min + j * lon_step
             zone_lat_max = zone_lat_min + lat_step
             zone_lon_max = zone_lon_min + lon_step
             zones.append({
-                "zone": i * 3 + j + 1,
+                "zone": i * sqr + j + 1,
                 "lat_min": zone_lat_min,
                 "lon_min": zone_lon_min,
                 "lat_max": zone_lat_max,
@@ -170,13 +182,17 @@ lanes_position = None
 
 def collect_lane_position(zone=None, batch_size=1000, cache_file="lane_positions_cache.json"):
     global lanes_position
+    logging.info(f"Collecting lane position data for zone {zone}...")
+    cache_file = f"lane_positions_cache.{get_max_zone()}.json"
     if lanes_position is not None:
         if zone is not None and str(zone) in lanes_position:
+            logging.info(f"Returning {len(lanes_position[str(zone)])} lanes for zone {zone}")
             return lanes_position[str(zone)]
         # Merge all lane lists if zone is None or not found
         merged = []
         for lane_list in lanes_position.values():
             merged.extend(lane_list)
+        logging.info(f"Returning {len(merged)} lanes for all zones")
         return merged
 
     # Try to load from cache
