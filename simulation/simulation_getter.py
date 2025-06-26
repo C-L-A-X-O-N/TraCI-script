@@ -279,11 +279,14 @@ def collect_lane_position(zone=None, batch_size=1000, cache_file="lane_positions
 
     return collect_lane_position(zone=zone)
 
+# Set
+lane_consecutive_count = {}
+
 zone_selected = 1
 
 def collect_lane_state(batch_size=10000):
     import concurrent.futures
-    global lanes_position, zone_selected
+    global lanes_position, zone_selected, lane_consecutive_count
 
     lanes = lanes_position[str(zone_selected)]
     zone_selected += 1
@@ -294,17 +297,30 @@ def collect_lane_state(batch_size=10000):
     def process_batch(batch):
         batch_data = []
         for lane in batch:
-            lane = lane["id"]
+            lane_id = lane["id"]
             occupancy = None
             # 1 chance sur 3 de récupérer l'occupancy
-            if random.randint(1, 3) == 1:
-                try:
-                    occupancy = traci.lane.getLastStepOccupancy(lane)
-                except Exception:
-                    occupancy = None
+            try:
+                occupancy = traci.lane.getLastStepOccupancy(lane_id)
+            except Exception:
+                occupancy = None
+
+            
+            if occupancy is not None and occupancy > 0:
+                lane_consecutive_count[lane_id] = lane_consecutive_count.get(lane_id, 0) + 1
+                
+                if lane_consecutive_count[lane_id] >= 3:
+                    logging.info("DATATATATATATATATATTATATA")
+                    final_occupancy = occupancy
+                else:
+                    final_occupancy = 0
+            else:
+                lane_consecutive_count[lane_id] = 0
+                final_occupancy = 0
+            
             batch_data.append({
-                "id": lane,
-                "traffic_jam": occupancy,
+                "id": lane_id,
+                "traffic_jam": final_occupancy,
             })
         return batch_data
 
