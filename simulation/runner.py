@@ -4,7 +4,7 @@ import traci, os, json, time
 
 from simulation.config import readNetFile, STEP_MAX
 from simulation.simulation_getter import collect_simulation_data, get_zones, collect_lane_position
-from simulation.simulation_setter import accidents_generator, accidents_liberator
+from simulation.simulation_setter import accidents_generator, accidents_liberator, set_traffic_light_state
 from simulation.traci_manager import start_traci, close_traci
 from util.mqtt import MqttClient, registry
 from util.logger import logger
@@ -12,6 +12,15 @@ from util.logger import logger
 def on_init_request(msg, mqttClient):
     data = json.loads(msg.payload.decode('utf-8'))
     registry.add_client(data['host'], data['port'], data['zone'] if 'zone' in data else None)
+
+def on_traffic_light_state_change(msg, mqttClient):
+    try:
+        data = json.loads(msg.payload.decode("utf-8"))
+        light_id = data["id"]
+        state = data["state"]
+        set_traffic_light_state(light_id, state)
+    except Exception as e:
+        logger.error(f"Error handling traffic light state change: {e}")
 
 def run_simulation():
     commonMqtt = None
@@ -36,7 +45,8 @@ def run_simulation():
         def _on_co(_):
             commonMqtt.publish("traci/start", "")
         commonMqtt = MqttClient(host=os.environ.get('MQTT_HOST', 'localhost'), port=int(os.environ.get('MQTT_PORT', 1883)), zone=None, subscribes={
-            "traci/node/start": on_init_request
+            "traci/node/start": on_init_request,
+            "claxon/command/traffic_light/update": on_traffic_light_state_change  # AJOUT OBLIGATOIRE
         }, on_connect=_on_co)
 
         # Tourne tant que il y a au moins un vehicule
