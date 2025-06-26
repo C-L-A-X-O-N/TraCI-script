@@ -114,6 +114,16 @@ class MqttClient:
                     if item["id"] in self.subscribed_traffic_lights.keys():
                         new_payload.append(item)
             payload = new_payload
+        elif topic == "traci/vehicle/position":
+            new_payload = []
+            for i in range(len(payload)):
+                item = payload[i]
+                if "position" in item and self.is_within_bounds(item["position"]):
+                    if item['type'] == "emergency__emergency":
+                        self.logger.info(f"Emergency vehicle {item['id']} within bounds, for zone {self.zone}")
+                    new_payload.append(item)
+            self.logger.debug(f"Filtered vehicle position payload size: {len(new_payload)} out of {len(payload)}")
+            payload = new_payload
         
         self.publish(topic, payload)
                         

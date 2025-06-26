@@ -21,6 +21,20 @@ SUMO_BINARY = os.path.join(SUMO_HOME, "bin", "sumo")
 NET_READER = None
 STEP_MAX = 3000
 
+# remove all *.rou and *.trip files if they exist
+def remove_existing_files():
+    files_to_remove = [
+        ROU_FILE, TRIP_FILE, TRAIN_TRIP_FILE, TRAIN_ROU_FILE,
+        BUS_TRIP_FILE, BUS_ROU_FILE, AMBULANCE_TRIP_FILE, AMBULANCE_ROU_FILE
+    ]
+    for file in files_to_remove:
+        if os.path.exists(file):
+            try:
+                os.remove(file)
+                logger.info(f"Fichier supprimé : {file}")
+            except Exception as e:
+                logger.error(f"Erreur lors de la suppression du fichier {file} : {e}")
+
 command_osm_transformation = [
     "netconvert",
     "--osm-files", OSM_FILE,
@@ -221,6 +235,7 @@ def readNetFile():
     return NET_READER
 
 def process_files():
+    remove_existing_files()
     logger.info("Début du traitement des fichiers...")
     
     # Étape 1: Conversion OSM -> NET (obligatoirement en premier)

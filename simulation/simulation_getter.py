@@ -310,7 +310,6 @@ def collect_lane_state(batch_size=10000):
                 lane_consecutive_count[lane_id] = lane_consecutive_count.get(lane_id, 0) + 1
                 
                 if lane_consecutive_count[lane_id] >= 3:
-                    logging.info("DATATATATATATATATATTATATA")
                     final_occupancy = occupancy
                 else:
                     final_occupancy = 0
