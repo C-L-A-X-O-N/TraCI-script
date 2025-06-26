@@ -81,12 +81,22 @@ def collect_simulation_data(is_first_step: bool, blocked_vehicles: dict):
         lights = collect_traffic_light_state()
         logging.debug("Collecting lanes...")
         lanes = collect_lane_state()
+        logging.debug("Collecting accidents...")
+        accidents = collect_accidents(blocked_vehicles)
+        # Récupérer le pas de simulation actuel
+        current_step = traci.simulation.getTime()
 
         for client in clients:
             logging.debug(f"Publishing data to zone {client.zone}...")
             client.publish_with_bounds("traci/vehicle/position", vehicles)
             client.publish_with_bounds("traci/traffic_light/state", lights)
             client.publish_with_bounds("traci/lane/state", lanes)
+            # Ajouter le pas de simulation actuel aux données d'accident
+            client.publish_with_bounds("traci/accident/position", {
+                "data": accidents,
+                "zone": client.zone,
+                "current_step": current_step
+            })
 
 def collect_vehicle(blocked_vehicles: dict):
     vehicle_ids = traci.vehicle.getIDList()
@@ -269,11 +279,14 @@ def collect_lane_position(zone=None, batch_size=1000, cache_file="lane_positions
 
     return collect_lane_position(zone=zone)
 
+# Set
+lane_consecutive_count = {}
+
 zone_selected = 1
 
 def collect_lane_state(batch_size=10000):
     import concurrent.futures
-    global lanes_position, zone_selected
+    global lanes_position, zone_selected, lane_consecutive_count
 
     lanes = lanes_position[str(zone_selected)]
     zone_selected += 1
@@ -284,17 +297,30 @@ def collect_lane_state(batch_size=10000):
     def process_batch(batch):
         batch_data = []
         for lane in batch:
-            lane = lane["id"]
+            lane_id = lane["id"]
             occupancy = None
             # 1 chance sur 3 de récupérer l'occupancy
-            if random.randint(1, 3) == 1:
-                try:
-                    occupancy = traci.lane.getLastStepOccupancy(lane)
-                except Exception:
-                    occupancy = None
+            try:
+                occupancy = traci.lane.getLastStepOccupancy(lane_id)
+            except Exception:
+                occupancy = None
+
+            
+            if occupancy is not None and occupancy > 0:
+                lane_consecutive_count[lane_id] = lane_consecutive_count.get(lane_id, 0) + 1
+                
+                if lane_consecutive_count[lane_id] >= 3:
+                    logging.info("DATATATATATATATATATTATATA")
+                    final_occupancy = occupancy
+                else:
+                    final_occupancy = 0
+            else:
+                lane_consecutive_count[lane_id] = 0
+                final_occupancy = 0
+            
             batch_data.append({
-                "id": lane,
-                "traffic_jam": occupancy,
+                "id": lane_id,
+                "traffic_jam": final_occupancy,
             })
         return batch_data
 
@@ -308,3 +334,20 @@ def collect_lane_state(batch_size=10000):
             lane_data.extend(future.result())
 
     return lane_data
+
+def collect_accidents(blocked_vehicles: dict):
+    """Collect data about vehicles with accidents"""
+    accident_data = []
+    
+    for vehicle_id, accident_info in blocked_vehicles.items():
+        if vehicle_id in traci.vehicle.getIDList():  # Vérifier que le véhicule existe encore
+            accident_data.append({
+                "id": vehicle_id,
+                "position": accident_info["position"],
+                "type": accident_info["type"],
+                "start_time": accident_info["start_time"],
+                "zone": accident_info["zone"],
+                "duration": accident_info["duration"]
+            })
+    
+    return accident_data
